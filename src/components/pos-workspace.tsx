@@ -63,6 +63,7 @@ import type {
 type PosWorkspaceProps = {
   products: Product[];
   customers: Customer[];
+  stockMovements: StockMovement[];
 };
 
 type SaleLine = DraftSaleItem & {
@@ -76,6 +77,7 @@ const roleOptions: AppRole[] = ["cashier", "manager", "admin"];
 export function PosWorkspace({
   products: initialProducts,
   customers,
+  stockMovements: initialStockMovements,
 }: PosWorkspaceProps) {
   const [products, setProducts] = useState(initialProducts);
   const [role, setRole] = useState<AppRole>("manager");
@@ -83,7 +85,8 @@ export function PosWorkspace({
   const [customerId, setCustomerId] = useState(customers[0]?.id ?? "");
   const [draftItems, setDraftItems] = useState<DraftSaleItem[]>([]);
   const [sales, setSales] = useState<CompletedSale[]>([]);
-  const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
+  const [stockMovements, setStockMovements] =
+    useState<StockMovement[]>(initialStockMovements);
   const [statusMessage, setStatusMessage] = useState(
     "Fiscal connector: not connected",
   );

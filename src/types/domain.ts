@@ -18,6 +18,7 @@ export type Customer = {
   id: string;
   name: string;
   email?: string;
+  phone?: string;
 };
 
 export type DraftSaleItem = {
@@ -40,7 +41,7 @@ export type StockMovement = {
   productId: string;
   productName: string;
   quantityDelta: number;
-  reason: "manual_adjustment" | "sale" | "void";
+  reason: "manual_adjustment" | "sale" | "void" | "import";
   createdAt: string;
   note?: string;
 };
