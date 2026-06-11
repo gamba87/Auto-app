@@ -44,7 +44,7 @@ products_seed as (
       'vnt.',
       2100,
       2499,
-      24.000,
+      0.000,
       5.000,
       true
     ),
@@ -56,7 +56,7 @@ products_seed as (
       'vnt.',
       2100,
       8999,
-      12.000,
+      0.000,
       3.000,
       true
     ),
@@ -68,7 +68,7 @@ products_seed as (
       'vnt.',
       2100,
       12900,
-      8.000,
+      0.000,
       2.000,
       true
     ),
@@ -80,7 +80,7 @@ products_seed as (
       'vnt.',
       2100,
       3299,
-      18.000,
+      0.000,
       4.000,
       true
     ),
@@ -92,7 +92,7 @@ products_seed as (
       'vnt.',
       2100,
       4599,
-      15.000,
+      0.000,
       4.000,
       true
     )
@@ -103,10 +103,9 @@ products_seed as (
     unit = excluded.unit,
     vat_rate_bps = excluded.vat_rate_bps,
     sale_price_cents = excluded.sale_price_cents,
-    stock = excluded.stock,
     min_stock = excluded.min_stock,
     active = excluded.active
-  returning id, sku, stock
+  returning id, sku
 )
 insert into public.stock_movements (
   id,
@@ -126,7 +125,13 @@ select
   end,
   products_seed.id,
   warehouse.id,
-  products_seed.stock,
+  case products_seed.sku
+    when 'BATH-SHOWER-001' then 24.000
+    when 'BATH-MIXER-002' then 12.000
+    when 'BATH-SINK-003' then 8.000
+    when 'BATH-SEAT-004' then 18.000
+    when 'BATH-RAIL-005' then 15.000
+  end,
   'import',
   'Development seed opening balance'
 from products_seed

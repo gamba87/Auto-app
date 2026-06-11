@@ -26,6 +26,15 @@ export type DraftSaleItem = {
   quantity: number;
 };
 
+export type CompletedSaleLine = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPriceCents: MoneyCents;
+  grossCents: MoneyCents;
+  vatCents: MoneyCents;
+};
+
 export type CompletedSale = {
   id: string;
   number: string;
@@ -34,6 +43,9 @@ export type CompletedSale = {
   totalCents: MoneyCents;
   status: "completed" | "voided";
   createdAt: string;
+  voidedAt?: string;
+  voidReason?: string;
+  lines: CompletedSaleLine[];
 };
 
 export type StockMovement = {

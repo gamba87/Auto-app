@@ -39,6 +39,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { calculateVatFromGross, formatMoney } from "@/lib/money";
 import {
+  applyStockMovements,
+  createCompletedSale,
+  createSaleStockMovements,
+  voidCompletedSale as voidLocalCompletedSale,
+} from "@/lib/pos-ledger";
+import {
   canAdjustStock,
   canManageProducts,
   canVoidCompletedSale,
@@ -217,42 +223,28 @@ export function PosWorkspace({
     const selectedCustomer =
       customers.find((customer) => customer.id === customerId) ?? customers[0];
     const saleNumber = `LOCAL-${String(sales.length + 1).padStart(4, "0")}`;
+    const sale = createCompletedSale({
+      id: crypto.randomUUID(),
+      number: saleNumber,
+      customerName: selectedCustomer?.name ?? "Walk-in customer",
+      createdAt: timestamp,
+      lines: saleLines,
+      totalCents: totals.grossCents,
+    });
+    const saleStockMovements = createSaleStockMovements({
+      sale,
+      createdAt: timestamp,
+      makeId: () => crypto.randomUUID(),
+    });
 
     setProducts((currentProducts) =>
-      currentProducts.map((product) => {
-        const line = saleLines.find((candidate) => candidate.productId === product.id);
-
-        if (!line) {
-          return product;
-        }
-
-        return { ...product, stock: product.stock - line.quantity };
-      }),
+      applyStockMovements(currentProducts, saleStockMovements),
     );
 
-    setSales((currentSales) => [
-      {
-        id: crypto.randomUUID(),
-        number: saleNumber,
-        customerName: selectedCustomer?.name ?? "Walk-in customer",
-        itemCount: saleLines.reduce((sum, line) => sum + line.quantity, 0),
-        totalCents: totals.grossCents,
-        status: "completed",
-        createdAt: timestamp,
-      },
-      ...currentSales,
-    ]);
+    setSales((currentSales) => [sale, ...currentSales]);
 
     setStockMovements((currentMovements) => [
-      ...saleLines.map((line) => ({
-        id: crypto.randomUUID(),
-        productId: line.product.id,
-        productName: line.product.name,
-        quantityDelta: -line.quantity,
-        reason: "sale" as const,
-        createdAt: timestamp,
-        note: saleNumber,
-      })),
+      ...saleStockMovements,
       ...currentMovements,
     ]);
 
@@ -273,12 +265,38 @@ export function PosWorkspace({
       return;
     }
 
-    setSales((currentSales) =>
-      currentSales.map((sale) =>
-        sale.id === saleId ? { ...sale, status: "voided" } : sale,
-      ),
-    );
-    setStatusMessage("Sale marked as voided in the local preview.");
+    const sale = sales.find((candidate) => candidate.id === saleId);
+
+    if (!sale) {
+      setStatusMessage("Sale was not found.");
+      return;
+    }
+
+    try {
+      const result = voidLocalCompletedSale({
+        sale,
+        products,
+        reason: "Local sale voided",
+        voidedAt: new Date().toISOString(),
+        makeId: () => crypto.randomUUID(),
+      });
+
+      setProducts(result.products);
+      setStockMovements((currentMovements) => [
+        ...result.stockMovements,
+        ...currentMovements,
+      ]);
+      setSales((currentSales) =>
+        currentSales.map((currentSale) =>
+          currentSale.id === saleId ? result.sale : currentSale,
+        ),
+      );
+      setStatusMessage("Sale voided locally and stock restored.");
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Sale could not be voided.",
+      );
+    }
   }
 
   function createProduct(values: ProductFormValues) {
@@ -316,36 +334,29 @@ export function PosWorkspace({
       return;
     }
 
-    const nextStock = product.stock + parsed.data.quantityDelta;
+    const timestamp = new Date().toISOString();
+    const movement: StockMovement = {
+      id: crypto.randomUUID(),
+      productId: product.id,
+      productName: product.name,
+      quantityDelta: parsed.data.quantityDelta,
+      reason: "manual_adjustment",
+      createdAt: timestamp,
+      note: parsed.data.note,
+    };
 
-    if (nextStock < 0) {
-      setStatusMessage("Stock cannot be adjusted below zero.");
+    try {
+      setProducts((currentProducts) =>
+        applyStockMovements(currentProducts, [movement]),
+      );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : "Stock adjustment failed.",
+      );
       return;
     }
 
-    const timestamp = new Date().toISOString();
-
-    setProducts((currentProducts) =>
-      currentProducts.map((currentProduct) =>
-        currentProduct.id === product.id
-          ? { ...currentProduct, stock: nextStock }
-          : currentProduct,
-      ),
-    );
-
-    setStockMovements((currentMovements) => [
-      {
-        id: crypto.randomUUID(),
-        productId: product.id,
-        productName: product.name,
-        quantityDelta: parsed.data.quantityDelta,
-        reason: "manual_adjustment",
-        createdAt: timestamp,
-        note: parsed.data.note,
-      },
-      ...currentMovements,
-    ]);
-
+    setStockMovements((currentMovements) => [movement, ...currentMovements]);
     setStatusMessage("Stock adjustment saved locally.");
   }
 
