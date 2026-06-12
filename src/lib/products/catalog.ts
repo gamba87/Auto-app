@@ -23,7 +23,7 @@ function toProductUnit(unit: string): Product["unit"] {
   return "vnt.";
 }
 
-function mapProduct(row: ProductRow): Product {
+export function mapProduct(row: ProductRow): Product {
   return {
     id: row.id,
     active: row.active,
@@ -71,4 +71,3 @@ export async function getProductCatalog(
     source: "supabase",
   };
 }
-

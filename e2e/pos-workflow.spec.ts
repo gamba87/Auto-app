@@ -42,3 +42,15 @@ test("admin integrations route shows fiscal outbox status", async ({ page }) => 
   await expect(page.locator("span", { hasText: "sale.completed" })).toBeVisible();
   await expect(page.locator("span", { hasText: "sale.voided" })).toBeVisible();
 });
+
+test("stock route shows levels and movement history", async ({ page }) => {
+  await page.goto("/stock");
+
+  await expect(page.getByRole("heading", { name: "Stock", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stock levels" })).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "BATH-SHOWER-001", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Movement history" })).toBeVisible();
+  await expect(page.getByText("Development seed opening balance").first()).toBeVisible();
+});

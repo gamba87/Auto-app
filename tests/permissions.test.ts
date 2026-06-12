@@ -30,4 +30,10 @@ describe("role helpers", () => {
     expect(canRoleAccessRoute("manager", "settingsIntegrations")).toBe(false);
     expect(canRoleAccessRoute("admin", "settingsIntegrations")).toBe(true);
   });
+
+  it("allows all staff roles to read stock routes", () => {
+    expect(canRoleAccessRoute("cashier", "stock")).toBe(true);
+    expect(canRoleAccessRoute("manager", "stock")).toBe(true);
+    expect(canRoleAccessRoute("admin", "stock")).toBe(true);
+  });
 });
