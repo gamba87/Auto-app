@@ -17,6 +17,7 @@ TypeScript starter for a POS and stock application using Next.js App Router and 
 - Stock changes happen through PostgreSQL RPCs: `complete_sale`, `cancel_draft_sale`, `void_completed_sale`, and `adjust_stock`.
 - Fiscal outbox event names use lower-case dot notation: `sale.completed` and `sale.voided`.
 - `integration_outbox` is infrastructure data. Sales RPCs write it through private `SECURITY DEFINER` functions; cashier sessions should not read those rows directly.
+- Draft cancellations store a required reason on `sales.cancel_reason` and in `audit_events`; they do not create fiscal outbox events because no fiscal sale was completed.
 - Fiscal hardware code is not implemented in v1. The app uses `FiscalConnector` and `MockFiscalConnector`.
 
 ## Local setup

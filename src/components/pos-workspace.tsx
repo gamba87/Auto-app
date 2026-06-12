@@ -79,6 +79,13 @@ type SaleLine = DraftSaleItem & {
 };
 
 const roleOptions: AppRole[] = ["cashier", "manager", "admin"];
+const cancelReasonOptions = [
+  { value: "customer_changed_mind", label: "Customer changed mind" },
+  { value: "wrong_item_selected", label: "Wrong item selected" },
+  { value: "duplicate_draft", label: "Duplicate draft" },
+  { value: "other", label: "Other" },
+] as const;
+type CancelReasonCode = (typeof cancelReasonOptions)[number]["value"];
 
 export function PosWorkspace({
   products: initialProducts,
@@ -103,6 +110,11 @@ export function PosWorkspace({
       note: "",
     },
   );
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReasonCode, setCancelReasonCode] = useState<CancelReasonCode>(
+    cancelReasonOptions[0].value,
+  );
+  const [cancelReasonDetail, setCancelReasonDetail] = useState("");
 
   const productForm = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -171,6 +183,20 @@ export function PosWorkspace({
   const canEditCatalog = canManageProducts(role);
   const canEditStock = canAdjustStock(role);
   const canVoidSale = canVoidCompletedSale(role);
+  const selectedCancelReason =
+    cancelReasonOptions.find((option) => option.value === cancelReasonCode) ??
+    cancelReasonOptions[0];
+  const cancelReasonText = useMemo(() => {
+    const detail = cancelReasonDetail.trim();
+
+    if (selectedCancelReason.value === "other") {
+      return detail;
+    }
+
+    return detail ? `${selectedCancelReason.label} - ${detail}` : selectedCancelReason.label;
+  }, [cancelReasonDetail, selectedCancelReason]);
+  const canConfirmCancelDraft =
+    saleLines.length > 0 && cancelReasonText.trim().length >= 5;
 
   function addToDraft(productId: string) {
     setDraftItems((currentItems) => {
@@ -249,14 +275,32 @@ export function PosWorkspace({
     ]);
 
     setDraftItems([]);
+    setCancelDialogOpen(false);
     setStatusMessage(
       `${saleNumber} completed locally. Fiscal connector remains not connected.`,
     );
   }
 
-  function cancelDraft() {
+  function openCancelDraftDialog() {
+    if (saleLines.length === 0) {
+      setStatusMessage("Add at least one product before cancelling a draft.");
+      return;
+    }
+
+    setCancelDialogOpen(true);
+  }
+
+  function confirmCancelDraft() {
+    if (!canConfirmCancelDraft) {
+      setStatusMessage("Choose a cancellation reason before cancelling the draft.");
+      return;
+    }
+
     setDraftItems([]);
-    setStatusMessage("Draft sale cancelled.");
+    setCancelDialogOpen(false);
+    setCancelReasonCode(cancelReasonOptions[0].value);
+    setCancelReasonDetail("");
+    setStatusMessage(`Draft sale cancelled: ${cancelReasonText}.`);
   }
 
   function voidSale(saleId: string) {
@@ -598,11 +642,102 @@ export function PosWorkspace({
                           <CheckCircle2 data-icon="inline-start" aria-hidden="true" />
                           Complete
                         </Button>
-                        <Button type="button" variant="outline" onClick={cancelDraft}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={openCancelDraftDialog}
+                          disabled={saleLines.length === 0}
+                        >
                           <RotateCcw data-icon="inline-start" aria-hidden="true" />
                           Cancel
                         </Button>
                       </div>
+
+                      {cancelDialogOpen ? (
+                        <div
+                          role="dialog"
+                          aria-modal="true"
+                          aria-labelledby="cancelDraftTitle"
+                          className="rounded-md border bg-background p-4"
+                        >
+                          <div>
+                            <h3
+                              id="cancelDraftTitle"
+                              className="text-sm font-semibold"
+                            >
+                              Cancel draft
+                            </h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              Confirm the cancellation and record a reason.
+                            </p>
+                          </div>
+
+                          <div className="mt-4 grid gap-3">
+                            <div className="grid gap-2">
+                              <Label htmlFor="cancelReason">Reason</Label>
+                              <select
+                                id="cancelReason"
+                                value={cancelReasonCode}
+                                onChange={(event) =>
+                                  setCancelReasonCode(
+                                    event.target.value as CancelReasonCode,
+                                  )
+                                }
+                                className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                {cancelReasonOptions.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="grid gap-2">
+                              <Label htmlFor="cancelReasonDetail">
+                                {selectedCancelReason.value === "other"
+                                  ? "Other reason"
+                                  : "Details"}
+                              </Label>
+                              <Input
+                                id="cancelReasonDetail"
+                                value={cancelReasonDetail}
+                                onChange={(event) =>
+                                  setCancelReasonDetail(event.target.value)
+                                }
+                                placeholder={
+                                  selectedCancelReason.value === "other"
+                                    ? "Enter at least 5 characters"
+                                    : "Optional"
+                                }
+                              />
+                              {selectedCancelReason.value === "other" &&
+                              cancelReasonDetail.trim().length < 5 ? (
+                                <p className="text-xs text-destructive">
+                                  Enter at least 5 characters.
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setCancelDialogOpen(false)}
+                            >
+                              Keep draft
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={confirmCancelDraft}
+                              disabled={!canConfirmCancelDraft}
+                            >
+                              Confirm cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </CardContent>
                 </Card>
@@ -957,12 +1092,31 @@ export function PosWorkspace({
                                 type="button"
                                 variant="outline"
                                 size="sm"
+                                aria-describedby={
+                                  !canVoidSale && sale.status === "completed"
+                                    ? `void-help-${sale.id}`
+                                    : undefined
+                                }
+                                title={
+                                  !canVoidSale && sale.status === "completed"
+                                    ? "Only managers can void completed sales. Contact a manager."
+                                    : undefined
+                                }
                                 disabled={!canVoidSale || sale.status === "voided"}
                                 onClick={() => voidSale(sale.id)}
                               >
                                 Void
                               </Button>
                             </div>
+                            {!canVoidSale && sale.status === "completed" ? (
+                              <p
+                                id={`void-help-${sale.id}`}
+                                className="mt-2 text-xs leading-5 text-muted-foreground"
+                              >
+                                Only managers can void completed sales. Contact a
+                                manager.
+                              </p>
+                            ) : null}
                           </div>
                         ))
                       )}

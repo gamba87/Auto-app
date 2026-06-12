@@ -16,4 +16,10 @@ export const voidSaleSchema = z.object({
   reason: z.string().trim().min(5).max(500),
 });
 
+export const cancelDraftSaleSchema = z.object({
+  saleId: z.uuid(),
+  reason: z.string().trim().min(5).max(500),
+});
+
 export type CompleteSaleRequest = z.infer<typeof completeSaleRequestSchema>;
+export type CancelDraftSaleRequest = z.infer<typeof cancelDraftSaleSchema>;

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { productFormSchema } from "@/lib/validation/product";
-import { completeSaleRequestSchema, voidSaleSchema } from "@/lib/validation/sale";
+import {
+  cancelDraftSaleSchema,
+  completeSaleRequestSchema,
+  voidSaleSchema,
+} from "@/lib/validation/sale";
 import { stockAdjustmentSchema } from "@/lib/validation/stock";
 
 const saleId = "11111111-1111-4111-8111-111111111111";
@@ -50,5 +54,15 @@ describe("validation schemas", () => {
 
   it("requires a meaningful void reason", () => {
     expect(() => voidSaleSchema.parse({ saleId, reason: "bad" })).toThrow();
+  });
+
+  it("requires a meaningful draft cancel reason", () => {
+    expect(() => cancelDraftSaleSchema.parse({ saleId, reason: "bad" })).toThrow();
+    expect(
+      cancelDraftSaleSchema.parse({
+        saleId,
+        reason: "Customer changed mind",
+      }),
+    ).toMatchObject({ saleId });
   });
 });

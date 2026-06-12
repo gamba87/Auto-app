@@ -291,6 +291,8 @@ export type Database = {
       }
       sales: {
         Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
           cashier_id: string
           completed_at: string | null
           created_at: string
@@ -308,6 +310,8 @@ export type Database = {
           voided_at: string | null
         }
         Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           cashier_id: string
           completed_at?: string | null
           created_at?: string
@@ -325,6 +329,8 @@ export type Database = {
           voided_at?: string | null
         }
         Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
           cashier_id?: string
           completed_at?: string | null
           created_at?: string
@@ -451,7 +457,10 @@ export type Database = {
         Args: { p_note?: string; p_product_id: string; p_qty: number }
         Returns: undefined
       }
-      cancel_draft_sale: { Args: { p_sale_id: string }; Returns: undefined }
+      cancel_draft_sale: {
+        Args: { p_reason: string; p_sale_id: string }
+        Returns: undefined
+      }
       complete_sale: {
         Args: { p_sale_id: string }
         Returns: {

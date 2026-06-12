@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(2);
+select plan(6);
 
 insert into auth.users (
   id,
@@ -97,12 +97,49 @@ values (
   '00000000-0000-0000-0000-000000000004'
 );
 
-select public.cancel_draft_sale('00000000-0000-0000-0000-000000000204');
+select public.cancel_draft_sale(
+  '00000000-0000-0000-0000-000000000204',
+  'Customer changed mind'
+);
 
 select is(
   (select status::text from public.sales where id = '00000000-0000-0000-0000-000000000204'),
   'cancelled',
   'cancel_draft_sale cancels own draft sale'
+);
+
+select is(
+  (select cancel_reason from public.sales where id = '00000000-0000-0000-0000-000000000204'),
+  'Customer changed mind',
+  'cancel_draft_sale stores the required cancel reason'
+);
+
+select ok(
+  (select cancelled_at is not null from public.sales where id = '00000000-0000-0000-0000-000000000204'),
+  'cancel_draft_sale stores the cancellation timestamp'
+);
+
+reset role;
+
+select is(
+  (
+    select metadata ->> 'reason'
+    from public.audit_events
+    where entity_id = '00000000-0000-0000-0000-000000000204'
+      and action = 'sale.cancelled'
+  ),
+  'Customer changed mind',
+  'cancel_draft_sale writes the reason to the audit event'
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.integration_outbox
+    where aggregate_id = '00000000-0000-0000-0000-000000000204'
+  ),
+  0,
+  'draft cancellation does not create a fiscal outbox event'
 );
 
 select finish();
