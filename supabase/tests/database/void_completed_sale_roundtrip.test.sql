@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 insert into auth.users (
   id,
@@ -20,6 +20,17 @@ values (
   'authenticated',
   'authenticated',
   'void-roundtrip-manager@example.test',
+  'not-used',
+  now(),
+  now(),
+  now()
+),
+(
+  '00000000-0000-0000-0000-000000000013',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated',
+  'authenticated',
+  'void-roundtrip-admin@example.test',
   'not-used',
   now(),
   now(),
@@ -166,6 +177,27 @@ select is(
   ),
   1,
   'void does not delete sale items'
+);
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object(
+    'sub', '00000000-0000-0000-0000-000000000013',
+    'role', 'authenticated',
+    'app_metadata', json_build_object('role', 'admin')
+  )::text,
+  true
+);
+
+select is(
+  (
+    select count(*)::integer
+    from public.integration_outbox
+    where aggregate_id = '00000000-0000-0000-0000-000000000212'
+      and event_type = 'sale.voided'
+  ),
+  1,
+  'void creates one lower-case sale.voided fiscal outbox event'
 );
 
 select finish();

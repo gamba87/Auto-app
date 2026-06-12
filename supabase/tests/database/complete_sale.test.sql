@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(5);
+select plan(7);
 
 insert into auth.users (
   id,
@@ -20,6 +20,17 @@ values (
   'authenticated',
   'authenticated',
   'cashier@example.test',
+  'not-used',
+  now(),
+  now(),
+  now()
+),
+(
+  '00000000-0000-0000-0000-000000000011',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated',
+  'authenticated',
+  'admin-outbox@example.test',
   'not-used',
   now(),
   now(),
@@ -98,8 +109,34 @@ select is(
 
 select is(
   (select count(*)::integer from public.integration_outbox where aggregate_id = '00000000-0000-0000-0000-000000000201'),
+  0,
+  'cashiers do not select fiscal outbox infrastructure rows'
+);
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object(
+    'sub', '00000000-0000-0000-0000-000000000011',
+    'role', 'authenticated',
+    'app_metadata', json_build_object('role', 'admin')
+  )::text,
+  true
+);
+
+select is(
+  (select count(*)::integer from public.integration_outbox where aggregate_id = '00000000-0000-0000-0000-000000000201'),
   1,
-  'complete_sale creates a fiscal outbox event'
+  'admins can verify complete_sale creates a fiscal outbox event'
+);
+
+select is(
+  (
+    select event_type
+    from public.integration_outbox
+    where aggregate_id = '00000000-0000-0000-0000-000000000201'
+  ),
+  'sale.completed',
+  'complete_sale uses the lower-case domain event name'
 );
 
 select finish();

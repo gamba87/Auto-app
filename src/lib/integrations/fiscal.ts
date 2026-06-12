@@ -17,7 +17,7 @@ export interface FiscalConnector {
 }
 
 export class MockFiscalConnector implements FiscalConnector {
-  async submitSale(_saleId: string): Promise<FiscalResult> {
+  async submitSale(): Promise<FiscalResult> {
     return {
       success: false,
       status: "NOT_CONNECTED",
@@ -25,7 +25,7 @@ export class MockFiscalConnector implements FiscalConnector {
     };
   }
 
-  async voidSale(_saleId: string): Promise<FiscalResult> {
+  async voidSale(): Promise<FiscalResult> {
     return {
       success: false,
       status: "NOT_CONNECTED",
