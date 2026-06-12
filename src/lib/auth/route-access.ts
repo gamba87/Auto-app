@@ -2,9 +2,8 @@ import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRoleFromAppMetadata } from "@/lib/permissions/roles";
+import { canRoleAccessRoute, type AppRouteKey } from "@/lib/permissions/routes";
 import type { AppRole } from "@/types/domain";
-
-export type AppRouteKey = "products" | "stock" | "settingsIntegrations";
 
 export type RouteSession = {
   displayName: string;
@@ -15,10 +14,9 @@ export type RouteSession = {
   userId: string | null;
 };
 
-const routeRoles: Record<AppRouteKey, AppRole[]> = {
-  products: ["cashier", "manager", "admin"],
-  stock: ["cashier", "manager", "admin"],
-  settingsIntegrations: ["admin"],
+type RouteSessionOptions = {
+  demoDisplayName?: string;
+  demoRole?: AppRole;
 };
 
 function hasSupabasePublicEnv() {
@@ -29,20 +27,23 @@ function hasSupabasePublicEnv() {
 }
 
 export function canAccessRoute(session: RouteSession, route: AppRouteKey) {
-  return (
-    session.isDemoMode ||
-    (session.isAuthenticated && routeRoles[route].includes(session.role))
-  );
+  return session.isAuthenticated && canRoleAccessRoute(session.role, route);
 }
 
-export async function getRouteSession(): Promise<RouteSession> {
+export async function getRouteSession(
+  options: RouteSessionOptions = {},
+): Promise<RouteSession> {
   if (!hasSupabasePublicEnv()) {
+    const demoRole = options.demoRole ?? "manager";
+
     return {
-      displayName: "Demo manager",
+      displayName:
+        options.demoDisplayName ??
+        `Demo ${demoRole}`,
       email: null,
       isAuthenticated: true,
       isDemoMode: true,
-      role: "manager",
+      role: demoRole,
       userId: null,
     };
   }
@@ -80,4 +81,3 @@ export async function getRouteSession(): Promise<RouteSession> {
     userId: user.id,
   };
 }
-

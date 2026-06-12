@@ -33,3 +33,12 @@ test("cashier role cannot save stock adjustment", async ({ page }) => {
     .toBe(1);
   await expect(page.getByRole("button", { name: "Save adjustment" })).toBeDisabled();
 });
+
+test("admin integrations route shows fiscal outbox status", async ({ page }) => {
+  await page.goto("/settings/integrations");
+
+  await expect(page.getByRole("heading", { name: "Integrations" })).toBeVisible();
+  await expect(page.getByText("NOT_CONNECTED")).toBeVisible();
+  await expect(page.locator("span", { hasText: "sale.completed" })).toBeVisible();
+  await expect(page.locator("span", { hasText: "sale.voided" })).toBeVisible();
+});

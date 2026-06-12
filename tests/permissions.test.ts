@@ -6,6 +6,7 @@ import {
   canVoidCompletedSale,
   getRoleFromAppMetadata,
 } from "@/lib/permissions/roles";
+import { canRoleAccessRoute } from "@/lib/permissions/routes";
 
 describe("role helpers", () => {
   it("allows cashiers to complete sales but not void them", () => {
@@ -22,5 +23,11 @@ describe("role helpers", () => {
     expect(getRoleFromAppMetadata({ role: "admin" })).toBe("admin");
     expect(getRoleFromAppMetadata({ role: "owner" })).toBe("cashier");
     expect(getRoleFromAppMetadata(undefined)).toBe("cashier");
+  });
+
+  it("blocks settings integrations for non-admin routes", () => {
+    expect(canRoleAccessRoute("cashier", "settingsIntegrations")).toBe(false);
+    expect(canRoleAccessRoute("manager", "settingsIntegrations")).toBe(false);
+    expect(canRoleAccessRoute("admin", "settingsIntegrations")).toBe(true);
   });
 });
